@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "nodeVersion": "20.x",
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
   "installCommand": "echo 'root install skipped'",
