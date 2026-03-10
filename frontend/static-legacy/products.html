@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockPilot - Products</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 24px; }
+        .header .user-info { display: flex; align-items: center; gap: 15px; }
+        .header button { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+        .container { display: flex; min-height: calc(100vh - 70px); }
+        .sidebar { width: 250px; background: white; padding: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
+        .sidebar nav a { display: block; padding: 12px 15px; color: #333; text-decoration: none; border-radius: 8px; margin-bottom: 5px; transition: background 0.3s; }
+        .sidebar nav a:hover, .sidebar nav a.active { background: #667eea; color: white; }
+        .main-content { flex: 1; padding: 30px; }
+        .section { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 30px; }
+        .section h2 { margin-bottom: 20px; color: #333; display: flex; justify-content: space-between; align-items: center; }
+        .btn { background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .btn:hover { background: #5a6fd6; }
+        .table { width: 100%; border-collapse: collapse; }
+        .table th, .table td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        .table th { background: #f9f9f9; font-weight: 600; color: #666; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #333; font-weight: 500; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 2px solid #e1e1e1; border-radius: 8px; font-size: 14px; }
+        .form-group input:focus { outline: none; border-color: #667eea; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 500px; max-width: 90%; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        .btn-secondary { background: #999; }
+        .status-low { color: #ef4444; font-weight: bold; }
+        .status-ok { color: #10b981; }
+        .search-box { padding: 10px; border: 2px solid #e1e1e1; border-radius: 8px; width: 300px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Products</h1>
+        <div class="user-info">
+            <button onclick="logout()">Logout</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="sidebar">
+            <nav>
+                <a href="/dashboard.html">Dashboard</a>
+                <a href="/products.html" class="active">Products</a>
+                <a href="/invoices.html">Invoices</a>
+                <a href="/customers.html">Customers</a>
+            </nav>
+        </div>
+        
+        <div class="main-content">
+            <div class="section">
+                <h2>
+                    <span>Product List</span>
+                    <div>
+                        <input type="text" class="search-box" placeholder="Search products..." id="searchInput">
+                        <button class="btn" onclick="openModal()">+ Add Product</button>
+                    </div>
+                </h2>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Product Name</th>
+                            <th>SKU</th>
+                            <th>Category</th>
+                            <th>Purchase Price</th>
+                            <th>Selling Price</th>
+                            <th>Stock</th>
+                            <th>GST %</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsBody">
+                        <tr><td colspan="8" style="text-align:center;padding:40px;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Product Modal -->
+    <div class="modal" id="productModal">
+        <div class="modal-content">
+            <h2>Add New Product</h2>
+            <form id="productForm">
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input type="text" name="product_name" required>
+                </div>
+                <div class="form-group">
+                    <label>SKU</label>
+                    <input type="text" name="sku">
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <input type="text" name="category">
+                </div>
+                <div class="form-group">
+                    <label>Brand</label>
+                    <input type="text" name="brand">
+                </div>
+                <div class="form-group">
+                    <label>Purchase Price</label>
+                    <input type="number" name="purchase_price" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Selling Price</label>
+                    <input type="number" name="selling_price" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Stock Quantity</label>
+                    <input type="number" name="stock_quantity" required>
+                </div>
+                <div class="form-group">
+                    <label>GST %</label>
+                    <input type="number" name="gst_percentage" value="18" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn">Add Product</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+const API_URL = '/api';
+        let token = localStorage.getItem('token');
+        
+        if (!token) window.location.href = '/index.html';
+        
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/index.html';
+        }
+        
+        function openModal() { document.getElementById('productModal').classList.add('active'); }
+        function closeModal() { document.getElementById('productModal').classList.remove('active'); }
+        
+        async function loadProducts() {
+            try {
+                const res = await fetch(`${API_URL}/products`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const products = await res.json();
+                    const tbody = document.getElementById('productsBody');
+                    if (products.length > 0) {
+                        tbody.innerHTML = products.map(p => `
+                            <tr>
+                                <td>${p.product_name}</td>
+                                <td>${p.sku || 'N/A'}</td>
+                                <td>${p.category || 'N/A'}</td>
+                                <td>₹${p.purchase_price}</td>
+                                <td>₹${p.selling_price}</td>
+                                <td class="${p.stock_quantity < 10 ? 'status-low' : 'status-ok'}">${p.stock_quantity}</td>
+                                <td>${p.gst_percentage}%</td>
+                                <td><button class="btn" style="padding:5px 10px;font-size:12px;">Edit</button></td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;">No products found. Add your first product!</td></tr>';
+                    }
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        document.getElementById('productForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            data.purchase_price = parseFloat(data.purchase_price);
+            data.selling_price = parseFloat(data.selling_price);
+            data.stock_quantity = parseInt(data.stock_quantity);
+            data.gst_percentage = parseFloat(data.gst_percentage);
+            
+            try {
+                const res = await fetch(`${API_URL}/products`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) {
+                    closeModal();
+                    e.target.reset();
+                    loadProducts();
+                } else {
+                    alert('Failed to add product');
+                }
+            } catch (error) {
+                alert('Error adding product');
+            }
+        });
+        
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#productsBody tr');
+            rows.forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
+            });
+        });
+        
+        loadProducts();
+    </script>
+</body>
+</html>

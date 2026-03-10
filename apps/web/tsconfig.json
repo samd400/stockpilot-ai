@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "paths": {
+      "@stockpilot/sdk": ["../../packages/sdk/src"],
+      "@stockpilot/ui": ["../../packages/ui/src"]
+    }
+  },
+  "include": ["src/**/*"]
+}

@@ -1,0 +1,239 @@
+version: '3.9'
+
+x-common-env: &common-env
+  SECRET_KEY: supersecretkey-stockpilot-change-in-production-32chars
+  SERVICE_TOKEN: internal-service-secret-change-me
+  ALLOWED_ORIGINS: http://localhost:3000
+  CELERY_BROKER_URL: redis://redis:6379/0
+  GEMINI_API_KEY: AIzaSyBB9AStpKhFG7J5bslp_9NPw5a85oGfecc
+  GEMINI_MODEL: gemini-2.0-flash
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stockpilot
+      POSTGRES_PASSWORD: stockpilot123
+      POSTGRES_DB: stockpilot_auth
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-databases.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U stockpilot']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gateway:
+    image: nginx:1.25-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth-service
+      - inventory-service
+      - billing-service
+      - crm-service
+      - ai-service
+      - notification-service
+
+  auth-service:
+    build: ./services/auth-service
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql://stockpilot:stockpilot123@postgres:5432/stockpilot_auth
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - '8001:8001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'python3', '-c', 'import urllib.request; urllib.request.urlopen("http://localhost:8001/health")']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  inventory-service:
+    build: ./services/inventory-service
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql://stockpilot:stockpilot123@postgres:5432/stockpilot_inventory
+    ports:
+      - '8002:8002'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'python3', '-c', 'import urllib.request; urllib.request.urlopen("http://localhost:8002/health")']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  billing-service:
+    build: ./services/billing-service
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql://stockpilot:stockpilot123@postgres:5432/stockpilot_billing
+      INVENTORY_SERVICE_URL: http://inventory-service:8002
+      NOTIFICATION_SERVICE_URL: http://notification-service:8006
+      STRIPE_SECRET_KEY: ""
+      RAZORPAY_KEY_ID: ""
+      RAZORPAY_KEY_SECRET: ""
+      PAYTABS_SERVER_KEY: ""
+      PAYTABS_PROFILE_ID: ""
+    ports:
+      - '8003:8003'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      inventory-service:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'python3', '-c', 'import urllib.request; urllib.request.urlopen("http://localhost:8003/health")']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  crm-service:
+    build: ./services/crm-service
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql://stockpilot:stockpilot123@postgres:5432/stockpilot_crm
+    ports:
+      - '8004:8004'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'python3', '-c', 'import urllib.request; urllib.request.urlopen("http://localhost:8004/health")']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ai-service:
+    build: ./services/ai-service
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql://stockpilot:stockpilot123@postgres:5432/stockpilot_billing
+      INVENTORY_SERVICE_URL: http://inventory-service:8002
+    ports:
+      - '8005:8005'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'python3', '-c', 'import urllib.request; urllib.request.urlopen("http://localhost:8005/health")']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  notification-service:
+    build: ./services/notification-service
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql://stockpilot:stockpilot123@postgres:5432/stockpilot_notifications
+      TWILIO_ACCOUNT_SID: ""
+      TWILIO_AUTH_TOKEN: ""
+      TWILIO_FROM_NUMBER: ""
+      SENDGRID_API_KEY: ""
+      EMAIL_FROM: noreply@stockpilot.app
+      EMAIL_FROM_NAME: StockPilot
+    ports:
+      - '8006:8006'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'python3', '-c', 'import urllib.request; urllib.request.urlopen("http://localhost:8006/health")']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  celery-ai-worker:
+    build: ./services/ai-service
+    restart: unless-stopped
+    command: celery -A app.tasks.agent_tasks.celery_app worker --loglevel=info --queues=celery --concurrency=2
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql://stockpilot:stockpilot123@postgres:5432/stockpilot_billing
+      INVENTORY_SERVICE_URL: http://inventory-service:8002
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  celery-ai-beat:
+    build: ./services/ai-service
+    restart: unless-stopped
+    command: celery -A app.tasks.agent_tasks.celery_app beat --loglevel=info
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql://stockpilot:stockpilot123@postgres:5432/stockpilot_billing
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  celery-notification-worker:
+    build: ./services/notification-service
+    restart: unless-stopped
+    command: celery -A app.tasks.notification_tasks.celery_app worker --loglevel=info --queues=celery --concurrency=4
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql://stockpilot:stockpilot123@postgres:5432/stockpilot_notifications
+      TWILIO_ACCOUNT_SID: ""
+      TWILIO_AUTH_TOKEN: ""
+      SENDGRID_API_KEY: ""
+      EMAIL_FROM: noreply@stockpilot.app
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  celery-notification-beat:
+    build: ./services/notification-service
+    restart: unless-stopped
+    command: celery -A app.tasks.notification_tasks.celery_app beat --loglevel=info
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql://stockpilot:stockpilot123@postgres:5432/stockpilot_notifications
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockPilot - Invoices</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 24px; }
+        .header button { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+        .container { display: flex; min-height: calc(100vh - 70px); }
+        .sidebar { width: 250px; background: white; padding: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
+        .sidebar nav a { display: block; padding: 12px 15px; color: #333; text-decoration: none; border-radius: 8px; margin-bottom: 5px; transition: background 0.3s; }
+        .sidebar nav a:hover, .sidebar nav a.active { background: #667eea; color: white; }
+        .main-content { flex: 1; padding: 30px; }
+        .section { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 30px; }
+        .section h2 { margin-bottom: 20px; color: #333; display: flex; justify-content: space-between; align-items: center; }
+        .btn { background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .btn:hover { background: #5a6fd6; }
+        .table { width: 100%; border-collapse: collapse; }
+        .table th, .table td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        .table th { background: #f9f9f9; font-weight: 600; color: #666; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #333; font-weight: 500; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 2px solid #e1e1e1; border-radius: 8px; font-size: 14px; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #667eea; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; overflow-y: auto; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 700px; max-width: 90%; margin: 20px; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        .btn-secondary { background: #999; }
+        .items-table { width: 100%; margin: 15px 0; }
+        .items-table th, .items-table td { padding: 8px; border: 1px solid #eee; }
+        .total-section { text-align: right; font-size: 18px; margin-top: 20px; }
+        .total-section strong { color: #667eea; }
+        .status-paid { color: #10b981; }
+        .status-pending { color: #f59e0b; }
+        .status-overdue { color: #ef4444; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Invoices</h1>
+        <button onclick="logout()">Logout</button>
+    </div>
+    
+    <div class="container">
+        <div class="sidebar">
+            <nav>
+                <a href="/dashboard.html">Dashboard</a>
+                <a href="/products.html">Products</a>
+                <a href="/invoices.html" class="active">Invoices</a>
+                <a href="/customers.html">Customers</a>
+            </nav>
+        </div>
+        
+        <div class="main-content">
+            <div class="section">
+                <h2>
+                    <span>Invoice List</span>
+                    <button class="btn" onclick="openModal()">+ Create Invoice</button>
+                </h2>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Invoice #</th>
+                            <th>Customer</th>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>GST</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoicesBody">
+                        <tr><td colspan="8" style="text-align:center;padding:40px;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Invoice Modal -->
+    <div class="modal" id="invoiceModal">
+        <div class="modal-content">
+            <h2>Create New Invoice</h2>
+            <form id="invoiceForm">
+                <div class="form-group">
+                    <label>Customer</label>
+                    <select name="customer_id" id="customerSelect" required>
+                        <option value="">Select Customer</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Payment Mode</label>
+                    <select name="payment_mode" required>
+                        <option value="CASH">Cash</option>
+                        <option value="CARD">Card</option>
+                        <option value="UPI">UPI</option>
+                        <option value="BANK_TRANSFER">Bank Transfer</option>
+                        <option value="CREDIT">Credit</option>
+                    </select>
+                </div>
+                
+                <h3>Invoice Items</h3>
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Price</th>
+                            <th>Total</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsBody">
+                        <tr>
+                            <td>
+                                <select class="item-product" onchange="updateItemPrice(this)">
+                                    <option value="">Select Product</option>
+                                </select>
+                            </td>
+                            <td><input type="number" class="item-qty" value="1" min="1" onchange="calcItemTotal(this)"></td>
+                            <td><input type="number" class="item-price" value="0" step="0.01" onchange="calcItemTotal(this)"></td>
+                            <td class="item-total">₹0</td>
+                            <td><button type="button" onclick="removeItem(this)" style="color:red;">✕</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <button type="button" onclick="addItem()" class="btn" style="margin-bottom:15px;">+ Add Item</button>
+                
+                <div class="total-section">
+                    <p>Subtotal: ₹<span id="subtotal">0</span></p>
+                    <p>GST (18%): ₹<span id="gstAmount">0</span></p>
+                    <p><strong>Total: ₹<span id="totalAmount">0</span></strong></p>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn">Create Invoice</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+const API_URL = '/api';
+        let token = localStorage.getItem('token');
+        let products = [];
+        let customers = [];
+        
+        if (!token) window.location.href = '/index.html';
+        
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/index.html';
+        }
+        
+        function openModal() { 
+            document.getElementById('invoiceModal').classList.add('active');
+            loadCustomersForSelect();
+            loadProductsForSelect();
+        }
+        function closeModal() { document.getElementById('invoiceModal').classList.remove('active'); }
+        
+        async function loadCustomersForSelect() {
+            try {
+                const res = await fetch(`${API_URL}/crm/customers`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    customers = await res.json();
+                    const select = document.getElementById('customerSelect');
+                    select.innerHTML = '<option value="">Select Customer</option>' + 
+                        customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                }
+            } catch (error) { console.error(error); }
+        }
+        
+        async function loadProductsForSelect() {
+            try {
+                const res = await fetch(`${API_URL}/products`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    products = await res.json();
+                    document.querySelectorAll('.item-product').forEach(select => {
+                        select.innerHTML = '<option value="">Select Product</option>' + 
+                            products.map(p => `<option value="${p.id}" data-price="${p.selling_price}">${p.product_name} - ₹${p.selling_price}</option>`).join('');
+                    });
+                }
+            } catch (error) { console.error(error); }
+        }
+        
+        function updateItemPrice(select) {
+            const price = select.options[select.selectedIndex]?.dataset?.price || 0;
+            select.closest('tr').querySelector('.item-price').value = price;
+            calcItemTotal(select);
+        }
+        
+        function calcItemTotal(input) {
+            const row = input.closest('tr');
+            const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+            const price = parseFloat(row.querySelector('.item-price').value) || 0;
+            row.querySelector('.item-total').textContent = '₹' + (qty * price).toFixed(2);
+            calcTotal();
+        }
+        
+        function addItem() {
+            const tbody = document.getElementById('itemsBody');
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td><select class="item-product" onchange="updateItemPrice(this)"><option value="">Select Product</option></select></td>
+                <td><input type="number" class="item-qty" value="1" min="1" onchange="calcItemTotal(this)"></td>
+                <td><input type="number" class="item-price" value="0" step="0.01" onchange="calcItemTotal(this)"></td>
+                <td class="item-total">₹0</td>
+                <td><button type="button" onclick="removeItem(this)" style="color:red;">✕</button></td>
+            `;
+            const productSelect = row.querySelector('.item-product');
+            productSelect.innerHTML = '<option value="">Select Product</option>' + 
+                products.map(p => `<option value="${p.id}" data-price="${p.selling_price}">${p.product_name} - ₹${p.selling_price}</option>`).join('');
+        }
+        
+        function removeItem(btn) {
+            if (document.querySelectorAll('#itemsBody tr').length > 1) {
+                btn.closest('tr').remove();
+                calcTotal();
+            }
+        }
+        
+        function calcTotal() {
+            let subtotal = 0;
+            document.querySelectorAll('#itemsBody tr').forEach(row => {
+                const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+                const price = parseFloat(row.querySelector('.item-price').value) || 0;
+                subtotal += qty * price;
+            });
+            const gst = subtotal * 0.18;
+            const total = subtotal + gst;
+            document.getElementById('subtotal').textContent = subtotal.toFixed(2);
+            document.getElementById('gstAmount').textContent = gst.toFixed(2);
+            document.getElementById('totalAmount').textContent = total.toFixed(2);
+        }
+        
+        async function loadInvoices() {
+            try {
+                const res = await fetch(`${API_URL}/invoices`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const invoices = await res.json();
+                    const tbody = document.getElementById('invoicesBody');
+                    if (invoices.length > 0) {
+                        tbody.innerHTML = invoices.map(inv => `
+                            <tr>
+                                <td>${inv.invoice_number || 'N/A'}</td>
+                                <td>${inv.customer_name || 'N/A'}</td>
+                                <td>${inv.created_at ? new Date(inv.created_at).toLocaleDateString() : 'N/A'}</td>
+                                <td>₹${(inv.subtotal || 0).toLocaleString()}</td>
+                                <td>₹${(inv.gst_amount || 0).toLocaleString()}</td>
+                                <td>₹${(inv.total_amount || 0).toLocaleString()}</td>
+                                <td class="status-paid">PAID</td>
+                                <td><button class="btn" style="padding:5px 10px;font-size:12px;">View</button></td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;">No invoices yet. Create your first invoice!</td></tr>';
+                    }
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('invoicesBody').innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;">Error loading invoices</td></tr>';
+            }
+        }
+        
+        document.getElementById('invoiceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const customer_id = document.getElementById('customerSelect').value;
+            const payment_mode = e.target.payment_mode.value;
+            
+            const items = [];
+            document.querySelectorAll('#itemsBody tr').forEach(row => {
+                const product_id = row.querySelector('.item-product').value;
+                const quantity = parseInt(row.querySelector('.item-qty').value);
+                const price = parseFloat(row.querySelector('.item-price').value);
+                if (product_id && quantity > 0) {
+                    items.push({ product_id, quantity, price });
+                }
+            });
+            
+            if (items.length === 0) {
+                alert('Please add at least one item');
+                return;
+            }
+            
+            try {
+                const res = await fetch(`${API_URL}/invoices`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ customer_id, payment_mode, items })
+                });
+                if (res.ok) {
+                    closeModal();
+                    e.target.reset();
+                    loadInvoices();
+                } else {
+                    const error = await res.json();
+                    alert('Failed: ' + JSON.stringify(error));
+                }
+            } catch (error) {
+                alert('Error creating invoice');
+            }
+        });
+        
+        loadInvoices();
+    </script>
+</body>
+</html>

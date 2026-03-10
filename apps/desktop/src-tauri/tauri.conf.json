@@ -1,0 +1,51 @@
+{
+  "productName": "StockPilot POS",
+  "version": "2.0.0",
+  "identifier": "com.stockpilot.pos",
+  "build": {
+    "beforeDevCommand": "cd ../../apps/web && pnpm dev",
+    "devUrl": "http://localhost:3000",
+    "beforeBuildCommand": "cd ../../apps/web && pnpm build",
+    "frontendDist": "../../apps/web/dist"
+  },
+  "app": {
+    "title": "StockPilot POS",
+    "windows": [
+      {
+        "title": "StockPilot POS",
+        "width": 1280,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:* https://*; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "wix": {
+        "language": "en-US"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "dialog": true,
+      "endpoints": [
+        "https://github.com/YOUR_ORG/stockpilot-desktop/releases/latest/download/latest.json"
+      ]
+    }
+  }
+}

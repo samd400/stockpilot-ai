@@ -1,0 +1,35 @@
+{
+  "name": "@stockpilot/mobile",
+  "version": "2.0.0",
+  "private": true,
+  "main": "src/App.tsx",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "build:android": "eas build --platform android",
+    "build:ios": "eas build --platform ios"
+  },
+  "dependencies": {
+    "expo": "~52.0.0",
+    "expo-barcode-scanner": "~13.0.0",
+    "expo-camera": "~16.0.0",
+    "expo-secure-store": "~14.0.0",
+    "expo-sqlite": "~15.0.0",
+    "expo-status-bar": "~2.0.0",
+    "expo-task-manager": "~12.0.0",
+    "expo-background-fetch": "~13.0.0",
+    "react": "18.2.0",
+    "react-native": "0.76.0",
+    "react-native-tcp-socket": "^6.0.6",
+    "@react-navigation/native": "^6.1.0",
+    "@react-navigation/native-stack": "^6.9.0",
+    "react-native-screens": "~4.0.0",
+    "react-native-safe-area-context": "~5.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "typescript": "^5.3.0",
+    "@types/react": "~18.2.45"
+  }
+}
