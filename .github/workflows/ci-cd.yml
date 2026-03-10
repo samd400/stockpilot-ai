@@ -84,6 +84,7 @@ jobs:
     needs: [backend-test, frontend-test]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    continue-on-error: true
     environment: production
 
     steps:
@@ -114,6 +115,7 @@ jobs:
     needs: [backend-test, frontend-test]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    continue-on-error: true
     environment: production
 
     steps:
