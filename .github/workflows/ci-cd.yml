@@ -109,36 +109,4 @@ jobs:
               services/${service}
           done
 
-  # ===== Frontend Deploy to Vercel (requires production environment secrets) =====
-  frontend-deploy:
-    name: Deploy — frontend
-    needs: [backend-test, frontend-test]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    continue-on-error: true
-    environment: production
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install and build
-        working-directory: frontend
-        run: |
-          npm ci
-          npm run build
-
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: frontend
-          vercel-args: --prod
+  # Frontend is deployed automatically by Vercel's GitHub App integration on every push to main
